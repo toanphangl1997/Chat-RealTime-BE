@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Realtime Chat Test</title>
+  </head>
+  <body>
+    <h2>Realtime Chat Test</h2>
+    <input id="sender" placeholder="Sender ID" />
+    <input id="receiver" placeholder="Receiver ID" />
+    <input id="message" placeholder="Message..." />
+    <button onclick="sendMessage()">Send</button>
+
+    <ul id="messages"></ul>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+      const socket = io('http://localhost:3197');
+
+      socket.on('connect', () => {
+        console.log('Connected:', socket.id);
+      });
+
+      socket.on('newMessage', (msg) => {
+        const li = document.createElement('li');
+        li.textContent = `[${msg.sender_id} → ${msg.receiver_id}] ${msg.content}`;
+        document.getElementById('messages').appendChild(li);
+      });
+
+      function sendMessage() {
+        const sender = document.getElementById('sender').value;
+        const receiver = document.getElementById('receiver').value;
+        const content = document.getElementById('message').value;
+
+        socket.emit('sendMessage', {
+          sender_id: Number(sender),
+          receiver_id: Number(receiver),
+          content: content,
+          time: new Date().toLocaleTimeString(),
+        });
+      }
+    </script>
+  </body>
+</html>

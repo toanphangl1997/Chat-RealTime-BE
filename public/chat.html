@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Realtime Chat Test</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+      }
+      #messages {
+        border: 1px solid #ccc;
+        height: 200px;
+        overflow-y: scroll;
+        margin-bottom: 10px;
+        padding: 10px;
+      }
+      .message {
+        margin-bottom: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Realtime Chat</h2>
+
+    <div>
+      <label>Sender ID: <input type="number" id="sender_id" value="1" /></label
+      ><br />
+      <label
+        >Receiver ID: <input type="number" id="receiver_id" value="2" /></label
+      ><br />
+      <label>Message: <input type="text" id="content" /></label><br />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <h3>Messages:</h3>
+    <div id="messages"></div>
+
+    <script>
+      const socket = io('http://localhost:3197');
+
+      socket.on('connect', () => {
+        console.log('✅ Connected to server');
+      });
+
+      socket.on('newMessage', (msg) => {
+        const el = document.createElement('div');
+        el.className = 'message';
+        el.textContent = `[${msg.sender?.id} → ${msg.receiver?.id}]: ${msg.content}`;
+        document.getElementById('messages').appendChild(el);
+      });
+
+      function sendMessage() {
+        const sender_id = parseInt(document.getElementById('sender_id').value);
+        const receiver_id = parseInt(
+          document.getElementById('receiver_id').value,
+        );
+        const content = document.getElementById('content').value;
+
+        socket.emit('sendMessage', { sender_id, receiver_id, content });
+      }
+    </script>
+  </body>
+</html>

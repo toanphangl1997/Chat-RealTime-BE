@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Realtime Duo Chat</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        max-width: 600px;
+        margin: auto;
+      }
+      #chatBox {
+        border: 1px solid #ccc;
+        height: 300px;
+        overflow-y: scroll;
+        padding: 10px;
+        margin-bottom: 10px;
+      }
+      .message {
+        margin-bottom: 5px;
+        padding: 4px;
+        border-radius: 4px;
+      }
+      .mine {
+        background-color: #dcf8c6;
+        text-align: right;
+      }
+      .theirs {
+        background-color: #f1f0f0;
+        text-align: left;
+      }
+      #header {
+        margin-bottom: 15px;
+      }
+      #status {
+        margin-top: 15px;
+        border: 1px solid #ddd;
+        padding: 10px;
+        background: #f9f9f9;
+      }
+      #onlineList li {
+        padding: 3px;
+        list-style: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="header">
+      <h2>Chat Realtime: Duo</h2>
+      <label>Your ID: <input type="number" id="yourId" value="" /></label>
+      <label> → With ID: <input type="number" id="targetId" value="" /></label>
+      <button id="startBtn">Start</button>
+    </div>
+
+    <div id="status">
+      <h4>Online Users:</h4>
+      <ul id="onlineList"></ul>
+    </div>
+
+    <div id="chatBox"></div>
+
+    <div>
+      <input
+        type="text"
+        id="content"
+        placeholder="Type your message..."
+        style="width: 80%"
+      />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+      const socket = io('http://localhost:3197');
+      const chatBox = document.getElementById('chatBox');
+      const yourIdInput = document.getElementById('yourId');
+      const targetIdInput = document.getElementById('targetId');
+      const onlineList = document.getElementById('onlineList');
+      const startBtn = document.getElementById('startBtn');
+
+      let userId = null;
+
+      startBtn.addEventListener('click', () => {
+        const inputId = parseInt(yourIdInput.value);
+        if (!inputId || isNaN(inputId)) {
+          alert('Please enter a valid user ID');
+          return;
+        }
+
+        userId = inputId;
+        socket.emit('userOnline', userId);
+        console.log('🔌 Connected as user ID:', userId);
+      });
+
+      function sendMessage() {
+        const sender_id = userId;
+        const receiver_id = parseInt(targetIdInput.value);
+        const content = document.getElementById('content').value;
+
+        if (!content.trim()) return;
+        if (!receiver_id || isNaN(receiver_id)) {
+          alert('Please enter a valid target ID');
+          return;
+        }
+
+        socket.emit('sendMessage', { sender_id, receiver_id, content });
+        document.getElementById('content').value = '';
+      }
+
+      socket.on('connect', () => {
+        console.log('✅ Socket connected with id:', socket.id);
+      });
+
+      socket.on('newMessage', (msg) => {
+        if (!userId) return;
+        if (msg.sender?.id !== userId && msg.receiver?.id !== userId) return;
+
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'message';
+        msgDiv.classList.add(msg.sender?.id === userId ? 'mine' : 'theirs');
+        msgDiv.textContent = `[User ${msg.sender?.id}]: ${msg.content}`;
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+      });
+
+      socket.on('onlineUsers', (users) => {
+        onlineList.innerHTML = '';
+        users.forEach((user) => {
+          const li = document.createElement('li');
+          li.textContent = `User ${user.name || user.id} (ID: ${user.id})`;
+          onlineList.appendChild(li);
+        });
+      });
+
+      socket.on('userOnline', (id) => {
+        console.log(`🔵 User ${id} is online`);
+      });
+
+      socket.on('userOffline', (id) => {
+        console.log(`⚪️ User ${id} is offline`);
+      });
+    </script>
+  </body>
+</html>

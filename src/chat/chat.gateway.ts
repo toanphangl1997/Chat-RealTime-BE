@@ -104,4 +104,15 @@ export class ChatGateway
       throw new WsException(error.message || 'Failed to save message');
     }
   }
+
+  @SubscribeMessage('typing')
+  handleTyping(@MessageBody() data: { toUserId: number; fromUser: any }) {
+    console.log('Emit typing to user:', data.toUserId, 'from:', data.fromUser);
+    this.server.to(`user-${data.toUserId}`).emit('typing', data.fromUser);
+  }
+
+  @SubscribeMessage('stopTyping')
+  handleStopTyping(@MessageBody() data: { toUserId: number; fromUser: any }) {
+    this.server.to(`user-${data.toUserId}`).emit('stopTyping', data.fromUser);
+  }
 }

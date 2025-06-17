@@ -11,8 +11,9 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
@@ -25,7 +26,10 @@ import { UsersService } from './users.service';
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
@@ -53,11 +57,12 @@ export class UsersController {
   }
 
   @Patch(':id/avatar')
+  @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FileInterceptor('avatar', {
       storage: diskStorage({
         destination: './uploads/avatars',
-        filename: (req, file, cb) => {
+        filename: (_req, file, cb) => {
           const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
           cb(null, uniqueName + extname(file.originalname));
         },
@@ -69,7 +74,11 @@ export class UsersController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) throw new NotFoundException('No file uploaded');
-    const avatarUrl = `http://localhost:3197/uploads/avatars/${file.filename}`;
+
+    const baseUrl =
+      this.configService.get<string>('BASE_URL') || 'http://localhost:3197';
+    const avatarUrl = `${baseUrl}/uploads/avatars/${file.filename}`;
+
     return this.usersService.update(+id, { avatar: avatarUrl });
   }
 }

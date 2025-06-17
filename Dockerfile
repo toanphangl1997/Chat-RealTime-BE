@@ -16,6 +16,7 @@ COPY . .
 EXPOSE 3197
 
 # Production build
+RUN npm install -g @nestjs/cli
 RUN npm run build
 
 # Nếu là development thì dùng ts-node-dev

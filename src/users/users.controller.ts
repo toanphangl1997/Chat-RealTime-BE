@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
@@ -57,7 +57,6 @@ export class UsersController {
   }
 
   @Patch(':id/avatar')
-  @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FileInterceptor('avatar', {
       storage: diskStorage({
@@ -69,15 +68,25 @@ export class UsersController {
       }),
     }),
   )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        avatar: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
   async uploadAvatar(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) throw new NotFoundException('No file uploaded');
-
     const baseUrl = this.configService.get<string>('BASE_URL');
     const avatarUrl = `${baseUrl}/uploads/avatars/${file.filename}`;
-
     return this.usersService.update(+id, { avatar: avatarUrl });
   }
 }

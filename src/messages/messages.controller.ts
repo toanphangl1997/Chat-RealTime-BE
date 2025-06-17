@@ -10,11 +10,14 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { MessagesService } from './messages.service';
 
+@ApiTags('Messages')
+@ApiBearerAuth()
 @Controller('messages')
 @UseGuards(JwtAuthGuard)
 export class MessagesController {

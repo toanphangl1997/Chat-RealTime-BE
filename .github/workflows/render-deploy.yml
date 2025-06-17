@@ -1,0 +1,33 @@
+name: Deploy to Render
+
+on:
+  push:
+    branches:
+      - main # Tự động chạy khi push lên nhánh main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🛒 Checkout source code
+        uses: actions/checkout@v3
+
+      - name: 🟦 Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: 📦 Install dependencies
+        run: npm install
+
+      - name: 🧪 Run tests (nếu có)
+        run: |
+          echo "No tests yet - skipping" 
+          # Nếu có test thì thay dòng này bằng: npm run test
+
+      - name: 🛠️ Build NestJS app
+        run: npm run build
+
+      - name: ✅ Notify Render of deployment (optional)
+        run: echo "Render will auto-deploy using its own GitHub link"

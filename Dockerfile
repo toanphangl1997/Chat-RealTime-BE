@@ -3,8 +3,9 @@ FROM node:20 AS builder
 
 WORKDIR /app
 
-# Cài gói
+# Cài gói (bao gồm devDependencies)
 COPY package*.json ./
+ENV NODE_ENV=development
 RUN npm install
 
 # Copy toàn bộ mã nguồn

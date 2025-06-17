@@ -16,17 +16,18 @@ import { UsersModule } from './users/users.module';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        host: config.get('DB_HOST'),
-        port: config.get<number>('DB_PORT'),
-        username: config.get('DB_USERNAME'),
-        password: config.get('DB_PASSWORD'),
-        database: config.get('DB_NAME'),
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: true,
-      }),
+      useFactory: (config: ConfigService) => {
+        const isProduction = config.get('NODE_ENV') === 'production';
+        return {
+          type: 'postgres',
+          url: config.get('DATABASE_URL'),
+          ssl: isProduction ? { rejectUnauthorized: false } : false,
+          autoLoadEntities: true,
+          synchronize: true, // nên set false nếu production thực tế
+        };
+      },
     }),
+
     TypeOrmModule.forFeature([User, Message]),
     UsersModule,
     MessagesModule,

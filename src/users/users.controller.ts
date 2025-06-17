@@ -75,8 +75,7 @@ export class UsersController {
   ) {
     if (!file) throw new NotFoundException('No file uploaded');
 
-    const baseUrl =
-      this.configService.get<string>('BASE_URL') || 'http://localhost:3197';
+    const baseUrl = this.configService.get<string>('BASE_URL');
     const avatarUrl = `${baseUrl}/uploads/avatars/${file.filename}`;
 
     return this.usersService.update(+id, { avatar: avatarUrl });

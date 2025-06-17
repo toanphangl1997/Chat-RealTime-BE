@@ -21,4 +21,4 @@ databases:
   - name: chat-realtime-db
     plan: free
     databaseName: chat_app
-    user: postgres
+    user: chat_user

@@ -1,25 +1,41 @@
-FROM node:20
+# Stage 1: Build
+FROM node:20 AS builder
 
-# Gắn biến môi trường
-ARG NODE_ENV=development
-ENV NODE_ENV=$NODE_ENV
+# Cài đặt biến môi trường
+ARG NODE_ENV=production
+ENV NODE_ENV $NODE_ENV
 
 WORKDIR /app
 
-# Cài đúng gói cần thiết trước khi copy source để tối ưu cache layer
+# Copy package trước để cache tốt hơn
 COPY package*.json ./
+RUN npm install
 
-# Cài đặt toàn bộ khi dev, chỉ cài gói production nếu build cho production
-RUN if [ "$NODE_ENV" = "production" ]; then npm install --omit=dev; else npm install; fi
-
-# Copy toàn bộ mã nguồn (bao gồm tsconfig.json, src, ...)
+# Copy toàn bộ mã nguồn
 COPY . .
 
-# Expose cổng NestJS
-EXPOSE 3197
+# Cài Nest CLI local (nằm trong node_modules/.bin/nest)
+RUN npm install --save-dev @nestjs/cli
 
-# Build nếu là production
+# Chạy build chỉ khi production
 RUN if [ "$NODE_ENV" = "production" ]; then npm run build; fi
 
-# Chạy tùy theo môi trường
-CMD [ "sh", "-c", "if [ \"$NODE_ENV\" = 'development' ]; then npx ts-node-dev --respawn src/main.ts; else node dist/main.js; fi" ]
+
+# Stage 2: Run app
+FROM node:20
+
+WORKDIR /app
+
+# Copy node_modules và mã đã build từ stage builder
+COPY --from=builder /app /app
+
+# Cổng mặc định expose
+EXPOSE 3197
+
+# CMD cho cả dev và prod
+CMD if [ "$NODE_ENV" = "development" ]; then \
+      npm install --legacy-peer-deps && \
+      npx ts-node-dev --respawn src/main.ts; \
+    else \
+      node dist/main.js; \
+    fi

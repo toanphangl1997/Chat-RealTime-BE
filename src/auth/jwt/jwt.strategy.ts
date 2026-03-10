@@ -18,14 +18,26 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: any) {
-    const user = await this.userRepo.findOneBy({ id: payload.sub });
+async validate(payload: any) {
+
+  if (process.env.NODE_ENV === 'development') {
+    const user = await this.userRepo.findOneBy({ id: 1 });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid token: user not found');
+      throw new UnauthorizedException('Dev user not found');
     }
 
     const { password, ...result } = user;
     return result;
   }
+
+  const user = await this.userRepo.findOneBy({ id: payload.sub });
+
+  if (!user) {
+    throw new UnauthorizedException('Invalid token: user not found');
+  }
+
+  const { password, ...result } = user;
+  return result;
+}
 }

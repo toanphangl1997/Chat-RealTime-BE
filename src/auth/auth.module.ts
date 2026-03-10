@@ -10,17 +10,23 @@ import { JwtStrategy } from './jwt/jwt.strategy';
 
 @Module({
   imports: [
+    ConfigModule,
     TypeOrmModule.forFeature([User]),
     PassportModule,
+
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get('JWT_SECRET'),
-        signOptions: { expiresIn: '1h' },
+
+      useFactory: async (config: ConfigService) => ({
+        secret: config.get<string>('JWT_SECRET') || 'chat_app_super_secret_2026',
+        signOptions: {
+          expiresIn: '7d',
+        },
       }),
     }),
   ],
+
   providers: [AuthService, JwtStrategy],
   controllers: [AuthController],
 })

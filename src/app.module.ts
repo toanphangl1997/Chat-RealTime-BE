@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -12,23 +12,30 @@ import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }), // Load biến môi trường toàn cục
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
-        const isProduction = config.get('NODE_ENV') === 'production';
-        return {
-          type: 'postgres',
-          url: config.get('DATABASE_URL'),
-          ssl: isProduction ? { rejectUnauthorized: false } : false,
-          autoLoadEntities: true,
-          synchronize: true, // nên set false nếu production thực tế
-        };
+    ConfigModule.forRoot({ isGlobal: true }),
+
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      host: 'ep-wandering-snow-a1t4hy9t.ap-southeast-1.aws.neon.tech',
+      port: 5432,
+      username: 'neondb_owner',
+      password: 'npg_hVQ3Kj1SnmTL',
+      database: 'neondb',
+
+      ssl: {
+        rejectUnauthorized: false,
       },
+
+      extra: {
+        ssl: true,
+      },
+
+      autoLoadEntities: true,
+      synchronize: false, // production nên false
     }),
 
     TypeOrmModule.forFeature([User, Message]),
+
     UsersModule,
     MessagesModule,
     ChatModule,

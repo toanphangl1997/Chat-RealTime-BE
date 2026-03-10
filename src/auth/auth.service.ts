@@ -28,6 +28,7 @@ export class AuthService {
     const savedUser = await this.userRepo.save(user);
 
     const { password, ...userWithoutPassword } = savedUser;
+    console.log(password, user.password);
     return userWithoutPassword;
   }
 
@@ -41,5 +42,10 @@ export class AuthService {
     const token = this.jwtService.sign({ sub: user.id, email: user.email });
 
     return { access_token: token };
+    
   }
 }
+
+
+// UPDATE users
+// SET password = '$2b$10$eb6qk4tC9Pq3IaAq5IbQEe7QIC3XlM5Ql4Id9/r3HRV.k6YUwNOE2';

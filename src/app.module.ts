@@ -12,26 +12,20 @@ import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
 
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'ep-wandering-snow-a1t4hy9t.ap-southeast-1.aws.neon.tech',
-      port: 5432,
-      username: 'neondb_owner',
-      password: 'npg_hVQ3Kj1SnmTL',
-      database: 'neondb',
+      url: process.env.DATABASE_URL,
 
       ssl: {
         rejectUnauthorized: false,
       },
 
-      extra: {
-        ssl: true,
-      },
-
       autoLoadEntities: true,
-      synchronize: false, // production nên false
+      synchronize: false,
     }),
 
     TypeOrmModule.forFeature([User, Message]),

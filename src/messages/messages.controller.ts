@@ -19,7 +19,7 @@ import { MessagesService } from './messages.service';
 @ApiTags('Messages')
 @ApiBearerAuth()
 @Controller('messages')
-@UseGuards(JwtAuthGuard)
+// @UseGuards(JwtAuthGuard)
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
 

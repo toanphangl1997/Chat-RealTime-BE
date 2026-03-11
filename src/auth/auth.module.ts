@@ -17,9 +17,10 @@ import { JwtStrategy } from './jwt/jwt.strategy';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-
       useFactory: async (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET') || 'chat_app_super_secret_2026',
+        secret:
+          config.get<string>('JWT_SECRET') ||
+          'chat_app_super_secret_2026',
         signOptions: {
           expiresIn: '7d',
         },
@@ -29,5 +30,10 @@ import { JwtStrategy } from './jwt/jwt.strategy';
 
   providers: [AuthService, JwtStrategy],
   controllers: [AuthController],
+
+  exports: [
+    PassportModule,
+    JwtModule,
+  ],
 })
 export class AuthModule {}

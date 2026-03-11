@@ -25,32 +25,34 @@ export class ChatGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
-  private onlineUsers = new Map<string, number>(); // socket.id => user_id
+  private onlineUsers = new Map<string, number>();
 
   constructor(
     private readonly messagesService: MessagesService,
     private readonly usersService: UsersService,
   ) {}
 
-  afterInit(server: Server) {
+  afterInit() {
     console.log('WebSocket Server initialized');
   }
 
   async handleConnection(client: Socket) {
     console.log(`Client connected: ${client.id}`);
-    // client just connected, wait until userId is received via userOnline
   }
 
   async handleDisconnect(client: Socket) {
     const userId = this.onlineUsers.get(client.id);
+
     if (userId) {
       await this.usersService.markUserOffline(userId);
       this.onlineUsers.delete(client.id);
-      console.log(`User ${userId} marked as offline`);
+
+      console.log(`User ${userId} offline`);
       await this.broadcastOnlineUsers();
     }
+
     console.log(`Client disconnected: ${client.id}`);
   }
 
@@ -59,55 +61,64 @@ export class ChatGateway
     @MessageBody() userId: number,
     @ConnectedSocket() client: Socket,
   ) {
-    if (!userId || typeof userId !== 'number') {
-      console.warn(`⚠️ Invalid userId from ${client.id}:`, userId);
-      return;
-    }
+    if (!userId) return;
 
     this.onlineUsers.set(client.id, userId);
+
     await this.usersService.markUserOnline(userId);
-    console.log(`User ${userId} marked as online`);
+
+    // join room riêng của user
+    client.join(`user-${userId}`);
+
+    console.log(`User ${userId} online`);
 
     await this.broadcastOnlineUsers();
   }
 
   private async broadcastOnlineUsers() {
-    const userIds = Array.from(this.onlineUsers.values());
-    const uniqueIds = [...new Set(userIds)]; // tránh trùng nếu nhiều tab cùng 1 user
+    const userIds = [...new Set(Array.from(this.onlineUsers.values()))];
+
     const userInfos = await Promise.all(
-      uniqueIds.map((id) => this.usersService.findOne(id)),
+      userIds.map((id) => this.usersService.findOne(id)),
     );
+
     this.server.emit('onlineUsers', userInfos);
   }
 
   @SubscribeMessage('sendMessage')
   async handleMessage(@MessageBody() payload: any) {
-    console.log('Incoming payload:', payload);
-
     const dto = plainToInstance(CreateMessageDto, payload);
     const errors = await validate(dto);
+
     if (errors.length > 0) {
       const messages = errors
         .map((err) => Object.values(err.constraints || {}))
         .flat();
-      throw new WsException(`Validation failed: ${messages.join(', ')}`);
+
+      throw new WsException(messages.join(', '));
     }
 
-    try {
-      const savedMessage = await this.messagesService.create(dto);
-      console.log('Message saved:', savedMessage);
+  try {
+    const savedMessage = await this.messagesService.create(dto);
 
-      this.server.emit('newMessage', savedMessage);
-      return savedMessage;
+    const senderId = savedMessage.sender.id;
+    const receiverId = savedMessage.receiver.id;
+
+    this.server.to(`user-${senderId}`).emit('newMessage', savedMessage);
+    this.server.to(`user-${receiverId}`).emit('newMessage', savedMessage);
+
+    return savedMessage;
     } catch (error) {
-      console.error('Error saving message:', error);
-      throw new WsException(error.message || 'Failed to save message');
-    }
+        if (error instanceof Error) {
+        throw new WsException(error.message);
+  }
+
+     throw new WsException('Save message failed');
+}
   }
 
   @SubscribeMessage('typing')
   handleTyping(@MessageBody() data: { toUserId: number; fromUser: any }) {
-    console.log('Emit typing to user:', data.toUserId, 'from:', data.fromUser);
     this.server.to(`user-${data.toUserId}`).emit('typing', data.fromUser);
   }
 

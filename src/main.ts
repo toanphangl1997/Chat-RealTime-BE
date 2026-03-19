@@ -1,3 +1,6 @@
+// import cloudinary init
+import { initCloudinary } from './config/cloudinary.config';
+
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -7,8 +10,12 @@ import { join } from 'path';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule); //  ép kiểu Express
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // INIT CLOUDINARY (QUAN TRỌNG NHẤT)
+  initCloudinary();
+
+  // Validation
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -16,27 +23,31 @@ async function bootstrap() {
     }),
   );
 
+  // CORS
   app.enableCors({
-    origin: '*', //  nếu muốn cho phép tất cả
-    credentials: true, // nếu có gửi cookie
+    origin: '*',
+    credentials: true,
   });
 
-  app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
+  // Giữ lại nếu bạn vẫn cần file local (optional)
+  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
-  // Cho phép serve file tĩnh (HTML test)
+  // Static assets
   app.useStaticAssets(join(__dirname, '..', 'public'));
 
-  // Swagger setup
+  // Swagger
   const config = new DocumentBuilder()
     .setTitle('Realtime Chat API')
     .setDescription('API documentation for chat_app')
     .setVersion('1.0')
-    .addBearerAuth() // Nếu dùng JWT
+    .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document); // => http://localhost:3197/api
+  SwaggerModule.setup('api', app, document);
 
+  // Start server
   await app.listen(process.env.PORT ?? 3197);
 }
+
 bootstrap();

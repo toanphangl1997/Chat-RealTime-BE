@@ -98,3 +98,10 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
 
 NOTE: đã sửa lỗi backend và backup database bằng Neon, chờ deploy lại backend
+
+NOTE 2: đã deploy lại, login chat realtime ổn trên trên cả dev và prod
+
+lỗi load avatar ở prod cả khung chat và icon
+
+tiếp tục: Đăng ký tài khoản CLoudinary để upload avatar tránh local: https://console.cloudinary.com/app/
+

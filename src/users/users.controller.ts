@@ -12,14 +12,14 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
+
+// import interceptor cloudinary
+import { CloudinaryInterceptor } from 'src/common/interceptors/cloudinary.interceptor';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -56,37 +56,30 @@ export class UsersController {
     return this.usersService.remove(+id);
   }
 
-  @Patch(':id/avatar')
-  @UseInterceptors(
-    FileInterceptor('avatar', {
-      storage: diskStorage({
-        destination: './uploads/avatars',
-        filename: (_req, file, cb) => {
-          const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(null, uniqueName + extname(file.originalname));
-        },
-      }),
-    }),
-  )
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        avatar: {
-          type: 'string',
-          format: 'binary',
-        },
+// FIX AVATAR (Cloudinary)
+@Patch(':id/avatar')
+@UseInterceptors(CloudinaryInterceptor)
+@ApiConsumes('multipart/form-data')
+@ApiBody({
+  schema: {
+    type: 'object',
+    properties: {
+      avatar: {
+        type: 'string',
+        format: 'binary',
       },
     },
-  })
-  async uploadAvatar(
-    @Param('id') id: string,
-    @UploadedFile() file: Express.Multer.File,
-  ) {
-    if (!file) throw new NotFoundException('No file uploaded');
-    const baseUrl = this.configService.get<string>('BASE_URL');
-    const avatarUrl = `${baseUrl}/uploads/avatars/${file.filename}`;
-    return this.usersService.update(+id, { avatar: avatarUrl });
-  }
+  },
+})
+async uploadAvatar(
+  @Param('id') id: string,
+  @UploadedFile() file: any,
+) {
+  if (!file) throw new NotFoundException('No file uploaded');
+
+  // URL từ Cloudinary
+  const avatarUrl = file.path;
+
+  return this.usersService.update(+id, { avatar: avatarUrl });
+}
 }

@@ -3,8 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { User } from 'src/entities/user.entity';
 import { MessagesService } from 'src/messages/messages.service';
 import { Repository } from 'typeorm';
-
-// import cloudinary để xoá ảnh cũ
 import { v2 as cloudinary } from 'cloudinary';
 
 @Injectable()
@@ -25,7 +23,7 @@ export class UsersService {
   }
 
   async findOne(id: number) {
-    const user = await this.usersRepository.findOneBy({ id });
+    const user = await this.usersRepository.findOne({ where: { id } });
     if (!user) {
       console.warn(`User with ID ${id} not found`);
       return null;
@@ -33,24 +31,27 @@ export class UsersService {
     return user;
   }
 
-  // UPDATE (có xử lý avatar cloudinary)
+  async findByEmailWithPassword(email: string) {
+    // Helper login, select password explicit
+    return this.usersRepository.findOne({
+      where: { email },
+      select: ['id', 'email', 'password', 'name', 'avatar', 'role'],
+    });
+  }
+
   async update(id: number, updateData: Partial<User>) {
-    const user = await this.usersRepository.findOneBy({ id });
+    const user = await this.usersRepository.findOne({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
 
-    // nếu có avatar mới → xoá avatar cũ trên cloud
     if (updateData.avatar && user.avatar) {
       try {
         const publicId = this.extractPublicId(user.avatar);
-        if (publicId) {
-          await cloudinary.uploader.destroy(publicId);
-        }
+        if (publicId) await cloudinary.uploader.destroy(publicId);
       } catch (error) {
         console.warn('Delete old avatar failed:', error);
       }
     }
 
-    // update user
     Object.assign(user, updateData);
     return this.usersRepository.save(user);
   }
@@ -59,13 +60,10 @@ export class UsersService {
     const user = await this.findOne(id);
     if (!user) throw new NotFoundException('User not found');
 
-    // xoá avatar khi xoá user
     if (user.avatar) {
       try {
         const publicId = this.extractPublicId(user.avatar);
-        if (publicId) {
-          await cloudinary.uploader.destroy(publicId);
-        }
+        if (publicId) await cloudinary.uploader.destroy(publicId);
       } catch (error) {
         console.warn('Delete avatar failed:', error);
       }
@@ -87,14 +85,11 @@ export class UsersService {
     await this.usersRepository.update(userId, { online: false });
   }
 
-  // helper: lấy public_id từ URL cloudinary
   private extractPublicId(url: string): string | null {
     try {
       const parts = url.split('/');
       const fileName = parts[parts.length - 1];
       const publicId = fileName.split('.')[0];
-
-      // nếu bạn dùng folder 'chat-app'
       return `chat-app/${publicId}`;
     } catch {
       return null;

@@ -1,5 +1,6 @@
 // import cloudinary init
 import { initCloudinary } from './config/cloudinary.config';
+import 'reflect-metadata';
 
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';

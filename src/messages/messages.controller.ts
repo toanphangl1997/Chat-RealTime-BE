@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Body,
+  ClassSerializerInterceptor,
   Controller,
   Delete,
   Get,
@@ -9,6 +10,7 @@ import {
   Post,
   Request,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
@@ -33,11 +35,12 @@ export class MessagesController {
     return this.messagesService.findAll();
   }
 
+  @Get(':id')
   findOne(@Param('id') id: string) {
-    const parsedId = parseInt(id, 10);
-    if (isNaN(parsedId)) throw new BadRequestException('Invalid message ID');
-    return this.messagesService.findOne(parsedId);
-  }
+  const parsedId = parseInt(id, 10);
+  if (isNaN(parsedId)) throw new BadRequestException('Invalid message ID');
+  return this.messagesService.findOne(parsedId);
+}
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateMessageDto) {
@@ -54,4 +57,14 @@ export class MessagesController {
   async getInbox(@Request() req) {
     return this.messagesService.getInboxUsers(req.user.id);
   }
+
+  @UseInterceptors(ClassSerializerInterceptor)
+  @Get('conversation/:userId')
+  @UseGuards(JwtAuthGuard)
+  getConversation(@Param('userId') userId: string, @Request() req) {
+  return this.messagesService.getConversation(
+    req.user.id,
+    parseInt(userId),
+  );
+}
 }

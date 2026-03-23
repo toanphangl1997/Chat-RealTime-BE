@@ -4,7 +4,7 @@ import { IsBoolean, IsOptional, IsString, IsUrl } from 'class-validator';
 export class CreateUserDto {
   @ApiProperty()
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiProperty()
   @IsOptional()

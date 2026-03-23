@@ -1,36 +1,46 @@
-// src/entities/user.entity.ts
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+
+import {
+  Column,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { Message } from './message.entity';
+import { Exclude } from 'class-transformer';
 
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ unique: true })
-  email: string;
+  email!: string;
 
-  @Column()
-  password: string;
+  @Column({ select: false })
+  @Exclude()
+  password!: string;
 
   @Column({ length: 100 })
-  name: string;
+  name!: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
-  avatar: string;
+  avatar!: string;
 
   @Column({ default: false })
-  online: boolean;
+  online!: boolean;
 
   @Column({ default: 'user' })
-  role: string;
+  role!: string;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  created_at: Date;
+  @Column({
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
+  created_at!: Date;
 
   @OneToMany(() => Message, (message) => message.sender)
-  sentMessages: Message[];
+  sentMessages!: Message[];
 
   @OneToMany(() => Message, (message) => message.receiver)
-  receivedMessages: Message[];
+  receivedMessages!: Message[];
 }

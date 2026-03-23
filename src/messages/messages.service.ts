@@ -99,4 +99,24 @@ export class MessagesService {
 
     return Array.from(userMap.values());
   }
+ async getConversation(currentUserId: number, otherUserId: number) {
+  const messages = await this.messagesRepository.find({
+    where: [
+      { sender: { id: currentUserId }, receiver: { id: otherUserId } },
+      { sender: { id: otherUserId }, receiver: { id: currentUserId } },
+    ],
+    relations: ["sender", "receiver"],
+    order: { created_at: "ASC" },
+    select: {
+      id: true,
+      content: true,
+      created_at: true,
+      sender: { id: true, name: true, avatar: true },
+      receiver: { id: true, name: true, avatar: true },
+    },
+  });
+
+  // 🔹 fix: luôn trả về mảng (không throw 404)
+  return messages || [];
+}
 }

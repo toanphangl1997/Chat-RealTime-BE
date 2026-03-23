@@ -20,20 +20,26 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
-    const exists = await this.userRepo.findOneBy({ email: dto.email });
+    const exists = await this.userRepo.findOne({ where: { email: dto.email } });
     if (exists) throw new ConflictException('Email already registered');
 
     const hashed = await bcrypt.hash(dto.password, 10);
+
     const user = this.userRepo.create({ ...dto, password: hashed });
     const savedUser = await this.userRepo.save(user);
 
+    // Exclude password khi trả về FE
     const { password, ...userWithoutPassword } = savedUser;
-    console.log(password, user.password);
     return userWithoutPassword;
   }
 
   async login(dto: LoginDto) {
-    const user = await this.userRepo.findOneBy({ email: dto.email });
+    // Explicit select password để bcrypt.compare không lỗi
+    const user = await this.userRepo.findOne({
+      where: { email: dto.email },
+      select: ['id', 'email', 'password', 'name', 'avatar', 'role'],
+    });
+
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     const match = await bcrypt.compare(dto.password, user.password);
@@ -42,10 +48,5 @@ export class AuthService {
     const token = this.jwtService.sign({ sub: user.id, email: user.email });
 
     return { access_token: token };
-    
   }
 }
-
-
-// UPDATE users
-// SET password = '$2b$10$eb6qk4tC9Pq3IaAq5IbQEe7QIC3XlM5Ql4Id9/r3HRV.k6YUwNOE2';

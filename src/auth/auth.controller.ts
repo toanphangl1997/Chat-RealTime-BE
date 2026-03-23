@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+// auth.controller.ts
+import { Body, Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from './jwt/jwt-auth.guard';
+import { Request, Response } from 'express';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -24,6 +26,16 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   getProfile(@Req() req) {
-    return req.user; // chứa id, email...
+    return req.user;
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  async logout(@Req() req: any, @Res() res: Response) {
+    const userId = req.user.id;
+    await this.authService.logout(userId);
+    res.clearCookie('refreshToken'); // nếu dùng cookie
+    return res.status(200).json({ message: 'Logout thành công' });
   }
 }

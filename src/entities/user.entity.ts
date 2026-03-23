@@ -1,4 +1,4 @@
-
+// user.entity.ts
 import {
   Column,
   Entity,
@@ -32,11 +32,11 @@ export class User {
   @Column({ default: 'user' })
   role!: string;
 
-  @Column({
-    type: 'timestamp',
-    default: () => 'CURRENT_TIMESTAMP',
-  })
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at!: Date;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  refreshToken!: string | null; // <- thêm cột refreshToken
 
   @OneToMany(() => Message, (message) => message.sender)
   sentMessages!: Message[];

@@ -70,35 +70,36 @@ export class MessagesService {
   }
 
   async getInboxUsers(currentUserId: number) {
-    const messages = await this.messagesRepository
-      .createQueryBuilder('message')
-      .leftJoinAndSelect('message.sender', 'sender')
-      .leftJoinAndSelect('message.receiver', 'receiver')
-      .where('message.sender_id = :id OR message.receiver_id = :id', {
-        id: currentUserId,
-      })
-      .orderBy('message.created_at', 'ASC')
-      .getMany();
+  const messages = await this.messagesRepository
+    .createQueryBuilder('message')
+    .leftJoinAndSelect('message.sender', 'sender')
+    .leftJoinAndSelect('message.receiver', 'receiver')
+    .where('sender.id = :id OR receiver.id = :id', {
+      id: currentUserId,
+    })
+    .orderBy('message.created_at', 'ASC')
+    .getMany();
 
-    const userMap = new Map<number, any>();
+  const userMap = new Map<number, any>();
 
-    for (const msg of messages) {
-      const otherUser =
-        msg.sender.id === currentUserId ? msg.receiver : msg.sender;
+  for (const msg of messages) {
+    const otherUser =
+      msg.sender.id === currentUserId ? msg.receiver : msg.sender;
 
-      if (!userMap.has(otherUser.id)) {
-        userMap.set(otherUser.id, {
-          id: otherUser.id,
-          name: otherUser.name,
-          avatar: otherUser.avatar,
-          online: otherUser.online,
-          lastMessage: msg.content,
-        });
-      }
+    if (!userMap.has(otherUser.id)) {
+      userMap.set(otherUser.id, {
+        id: otherUser.id,
+        name: otherUser.name,
+        avatar: otherUser.avatar,
+        online: otherUser.online,
+        lastMessage: msg.content,
+      });
     }
-
-    return Array.from(userMap.values());
   }
+
+  return Array.from(userMap.values());
+}
+
  async getConversation(currentUserId: number, otherUserId: number) {
   const messages = await this.messagesRepository.find({
     where: [

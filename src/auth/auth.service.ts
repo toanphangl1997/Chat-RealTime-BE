@@ -1,3 +1,4 @@
+// auth.service.ts
 import {
   ConflictException,
   Injectable,
@@ -24,20 +25,17 @@ export class AuthService {
     if (exists) throw new ConflictException('Email already registered');
 
     const hashed = await bcrypt.hash(dto.password, 10);
-
     const user = this.userRepo.create({ ...dto, password: hashed });
     const savedUser = await this.userRepo.save(user);
 
-    // Exclude password khi trả về FE
     const { password, ...userWithoutPassword } = savedUser;
     return userWithoutPassword;
   }
 
   async login(dto: LoginDto) {
-    // Explicit select password để bcrypt.compare không lỗi
     const user = await this.userRepo.findOne({
       where: { email: dto.email },
-      select: ['id', 'email', 'password', 'name', 'avatar', 'role'],
+      select: ['id', 'email', 'password', 'name', 'avatar', 'role', 'refreshToken'],
     });
 
     if (!user) throw new UnauthorizedException('Invalid credentials');
@@ -47,6 +45,16 @@ export class AuthService {
 
     const token = this.jwtService.sign({ sub: user.id, email: user.email });
 
-    return { access_token: token };
+    // Optional: tạo refreshToken (nếu cần)
+    const refreshToken = this.jwtService.sign({ sub: user.id }, { expiresIn: '7d' });
+    user.refreshToken = refreshToken;
+    await this.userRepo.save(user);
+
+    return { access_token: token, refreshToken };
+  }
+
+  async logout(userId: number) {
+    // xóa refresh token
+    await this.userRepo.update(userId, { refreshToken: null });
   }
 }

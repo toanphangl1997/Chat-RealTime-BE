@@ -21,7 +21,7 @@ import { MessagesService } from './messages.service';
 @ApiTags('Messages')
 @ApiBearerAuth()
 @Controller('messages')
-// @UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard)
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
 
@@ -30,17 +30,33 @@ export class MessagesController {
     return this.messagesService.create(dto);
   }
 
+  // ĐẶT inbox TRƯỚC
+  @Get('inbox')
+  async getInbox(@Request() req) {
+    return this.messagesService.getInboxUsers(req.user.id);
+  }
+
+  @UseInterceptors(ClassSerializerInterceptor)
+  @Get('conversation/:userId')
+  getConversation(@Param('userId') userId: string, @Request() req) {
+    const parsed = parseInt(userId, 10);
+    if (isNaN(parsed)) throw new BadRequestException('Invalid userId');
+
+    return this.messagesService.getConversation(req.user.id, parsed);
+  }
+
   @Get()
   findAll() {
     return this.messagesService.findAll();
   }
 
+  // để cuối cùng
   @Get(':id')
   findOne(@Param('id') id: string) {
-  const parsedId = parseInt(id, 10);
-  if (isNaN(parsedId)) throw new BadRequestException('Invalid message ID');
-  return this.messagesService.findOne(parsedId);
-}
+    const parsedId = parseInt(id, 10);
+    if (isNaN(parsedId)) throw new BadRequestException('Invalid message ID');
+    return this.messagesService.findOne(parsedId);
+  }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateMessageDto) {
@@ -51,20 +67,4 @@ export class MessagesController {
   remove(@Param('id') id: string) {
     return this.messagesService.remove(+id);
   }
-
-  @Get('inbox')
-  @UseGuards(JwtAuthGuard)
-  async getInbox(@Request() req) {
-    return this.messagesService.getInboxUsers(req.user.id);
-  }
-
-  @UseInterceptors(ClassSerializerInterceptor)
-  @Get('conversation/:userId')
-  @UseGuards(JwtAuthGuard)
-  getConversation(@Param('userId') userId: string, @Request() req) {
-  return this.messagesService.getConversation(
-    req.user.id,
-    parseInt(userId),
-  );
-}
 }

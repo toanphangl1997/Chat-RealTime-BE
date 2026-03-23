@@ -9,7 +9,7 @@ import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
-    private configService: ConfigService,   // QUAN TRỌNG
+    private configService: ConfigService,
     @InjectRepository(User)
     private userRepo: Repository<User>,
   ) {
@@ -28,7 +28,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: any) {
     const user = await this.userRepo.findOneBy({ id: payload.sub });
-    console.log("JWT payload:", payload);
+    // console.log("JWT payload:", payload);
 
     if (!user) {
       throw new UnauthorizedException('Invalid token');

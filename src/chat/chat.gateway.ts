@@ -27,7 +27,8 @@ export class ChatGateway
   @WebSocketServer()
   server!: Server;
 
-  private onlineUsers = new Map<string, number>();
+  // userId -> Set<socketId>
+  private onlineUsers = new Map<number, Set<string>>();
 
   constructor(
     private readonly messagesService: MessagesService,
@@ -35,95 +36,146 @@ export class ChatGateway
   ) {}
 
   afterInit() {
-    console.log('WebSocket Server initialized');
+    console.log('✅ WebSocket Server initialized');
   }
 
+  // ===== CONNECT =====
   async handleConnection(client: Socket) {
-    console.log(`Client connected: ${client.id}`);
-  }
+    try {
+      const rawUserId = client.handshake.auth?.userId;
+      const userId = Number(rawUserId);
 
-  async handleDisconnect(client: Socket) {
-    const userId = this.onlineUsers.get(client.id);
+      console.log('🔥 RAW USER ID:', rawUserId);
 
-    if (userId) {
-      await this.usersService.markUserOffline(userId);
-      this.onlineUsers.delete(client.id);
+      if (!userId) {
+        console.log('❌ Invalid userId → disconnect');
+        client.disconnect();
+        return;
+      }
 
-      console.log(`User ${userId} offline`);
-      await this.broadcastOnlineUsers();
+      client.data.userId = userId;
+
+      // ✅ JOIN ROOM
+      const room = `user-${userId}`;
+      client.join(room);
+
+      console.log(`✅ JOIN ROOM: ${room}`);
+
+      // add socket
+      const sockets = this.onlineUsers.get(userId) || new Set();
+      sockets.add(client.id);
+      this.onlineUsers.set(userId, sockets);
+
+      // first tab online
+      if (sockets.size === 1) {
+        await this.usersService.markUserOnline(userId);
+        this.server.emit('userOnline', userId);
+      }
+
+      console.log(`🟢 User ${userId} connected (${client.id})`);
+    } catch (err) {
+      console.log('❌ Connection error:', err);
+      client.disconnect();
     }
-
-    console.log(`Client disconnected: ${client.id}`);
   }
 
-  @SubscribeMessage('userOnline')
-  async handleUserOnline(
-    @MessageBody() userId: number,
-    @ConnectedSocket() client: Socket,
-  ) {
+  // ===== DISCONNECT =====
+  async handleDisconnect(client: Socket) {
+    const userId = client.data.userId;
     if (!userId) return;
 
-    this.onlineUsers.set(client.id, userId);
+    const sockets = this.onlineUsers.get(userId);
 
-    await this.usersService.markUserOnline(userId);
+    if (sockets) {
+      sockets.delete(client.id);
 
-    // join room riêng của user
-    client.join(`user-${userId}`);
+      if (sockets.size === 0) {
+        this.onlineUsers.delete(userId);
 
-    console.log(`User ${userId} online`);
+        await this.usersService.markUserOffline(userId);
+        this.server.emit('userOffline', userId);
 
-    await this.broadcastOnlineUsers();
-  }
-
-  private async broadcastOnlineUsers() {
-    const userIds = [...new Set(Array.from(this.onlineUsers.values()))];
-
-    const userInfos = await Promise.all(
-      userIds.map((id) => this.usersService.findOne(id)),
-    );
-
-    this.server.emit('onlineUsers', userInfos);
-  }
-
-  @SubscribeMessage('sendMessage')
-  async handleMessage(@MessageBody() payload: any) {
-    const dto = plainToInstance(CreateMessageDto, payload);
-    const errors = await validate(dto);
-
-    if (errors.length > 0) {
-      const messages = errors
-        .map((err) => Object.values(err.constraints || {}))
-        .flat();
-
-      throw new WsException(messages.join(', '));
+        console.log(`🔴 User ${userId} offline`);
+      } else {
+        this.onlineUsers.set(userId, sockets);
+      }
     }
 
-  try {
-    const savedMessage = await this.messagesService.create(dto);
-
-    const senderId = savedMessage.sender.id;
-    const receiverId = savedMessage.receiver.id;
-
-    this.server.to(`user-${senderId}`).emit('newMessage', savedMessage);
-    this.server.to(`user-${receiverId}`).emit('newMessage', savedMessage);
-
-    return savedMessage;
-    } catch (error) {
-        if (error instanceof Error) {
-        throw new WsException(error.message);
+    console.log(`❌ Client disconnected: ${client.id}`);
   }
 
-     throw new WsException('Save message failed');
+  // ===== SEND MESSAGE =====
+@SubscribeMessage('sendMessage')
+async handleMessage(
+  @ConnectedSocket() client: Socket,
+  @MessageBody() payload: any,
+) {
+  const dto = plainToInstance(CreateMessageDto, payload);
+  const errors = await validate(dto);
+
+  if (errors.length > 0) {
+    throw new WsException('Validation failed');
+  }
+
+  const savedMessage = await this.messagesService.create(dto);
+
+  const receiverRoom = `user-${savedMessage.receiver.id}`;
+
+  // ✅ CHỈ EMIT CHO RECEIVER
+  this.server.to(receiverRoom).emit('new_message', savedMessage);
+
+  return savedMessage;
 }
-  }
 
+  // ===== TYPING =====
   @SubscribeMessage('typing')
-  handleTyping(@MessageBody() data: { toUserId: number; fromUser: any }) {
-    this.server.to(`user-${data.toUserId}`).emit('typing', data.fromUser);
+  handleTyping(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { toUserId: number },
+  ) {
+    const from = client.data.userId;
+    const room = `user-${data.toUserId}`;
+
+    console.log(`⌨️ typing: ${from} -> ${data.toUserId}`);
+
+    this.server.to(room).emit('typing', { from });
   }
 
   @SubscribeMessage('stopTyping')
-  handleStopTyping(@MessageBody() data: { toUserId: number; fromUser: any }) {
-    this.server.to(`user-${data.toUserId}`).emit('stopTyping', data.fromUser);
+  handleStopTyping(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { toUserId: number },
+  ) {
+    const from = client.data.userId;
+    const room = `user-${data.toUserId}`;
+
+    this.server.to(room).emit('stopTyping', { from });
+  }
+
+  // ===== SEEN =====
+  @SubscribeMessage('seenMessage')
+  handleSeen(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { messageId: number; toUserId: number },
+  ) {
+    const from = client.data.userId;
+    const room = `user-${data.toUserId}`;
+
+    console.log(`👁️ seen: ${from} -> ${data.toUserId}`);
+
+    this.server.to(room).emit('messageSeen', {
+      messageId: data.messageId,
+      seenBy: from,
+    });
+  }
+
+  // ===== ONLINE USERS =====
+  @SubscribeMessage('getOnlineUsers')
+  handleGetOnlineUsers(@ConnectedSocket() client: Socket) {
+    const onlineUserIds = Array.from(this.onlineUsers.keys());
+
+    console.log('📡 SEND onlineUsers:', onlineUserIds);
+
+    client.emit('onlineUsers', onlineUserIds);
   }
 }

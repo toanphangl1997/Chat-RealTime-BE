@@ -1,5 +1,6 @@
 // auth.service.ts
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
@@ -35,7 +36,15 @@ export class AuthService {
   async login(dto: LoginDto) {
     const user = await this.userRepo.findOne({
       where: { email: dto.email },
-      select: ['id', 'email', 'password', 'name', 'avatar', 'role', 'refreshToken'],
+      select: [
+        'id',
+        'email',
+        'password',
+        'name',
+        'avatar',
+        'role',
+        'refreshToken',
+      ],
     });
 
     if (!user) throw new UnauthorizedException('Invalid credentials');
@@ -46,7 +55,10 @@ export class AuthService {
     const token = this.jwtService.sign({ sub: user.id, email: user.email });
 
     // Optional: tạo refreshToken (nếu cần)
-    const refreshToken = this.jwtService.sign({ sub: user.id }, { expiresIn: '7d' });
+    const refreshToken = this.jwtService.sign(
+      { sub: user.id },
+      { expiresIn: '7d' },
+    );
     user.refreshToken = refreshToken;
     await this.userRepo.save(user);
 
@@ -56,5 +68,41 @@ export class AuthService {
   async logout(userId: number) {
     // xóa refresh token
     await this.userRepo.update(userId, { refreshToken: null });
+  }
+
+  async changePassword(
+    userId: number,
+    body: { currentPassword: string; newPassword: string },
+  ) {
+    const { currentPassword, newPassword } = body;
+
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      select: ['id', 'password'],
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // check current password
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    // validate new password
+    if (newPassword.length < 6) {
+      throw new UnauthorizedException('Password must be at least 6 characters');
+    }
+
+    // hash new password
+    const hashed = await bcrypt.hash(newPassword, 10);
+
+    await this.userRepo.update(userId, {
+      password: hashed,
+    });
+
+    return { message: 'Password changed successfully' };
   }
 }

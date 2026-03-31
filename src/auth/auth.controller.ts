@@ -1,5 +1,13 @@
 // auth.controller.ts
-import { Body, Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -37,5 +45,16 @@ export class AuthController {
     await this.authService.logout(userId);
     res.clearCookie('refreshToken'); // nếu dùng cookie
     return res.status(200).json({ message: 'Logout thành công' });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post('change-password')
+  changePassword(
+    @Req() req: any,
+    @Body() body: { currentPassword: string; newPassword: string },
+  ) {
+    const userId = req.user.id;
+    return this.authService.changePassword(userId, body);
   }
 }

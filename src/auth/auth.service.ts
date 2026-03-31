@@ -21,18 +21,38 @@ export class AuthService {
     private userRepo: Repository<User>,
   ) {}
 
+  // ================= REGISTER =================
   async register(dto: RegisterDto) {
-    const exists = await this.userRepo.findOne({ where: { email: dto.email } });
-    if (exists) throw new ConflictException('Email already registered');
+    const exists = await this.userRepo.findOne({
+      where: { email: dto.email },
+    });
+
+    if (exists) {
+      throw new ConflictException('Email is already registered');
+    }
+
+    if (!dto.password || dto.password.length < 6) {
+      throw new BadRequestException('Password must be at least 6 characters');
+    }
 
     const hashed = await bcrypt.hash(dto.password, 10);
-    const user = this.userRepo.create({ ...dto, password: hashed });
+
+    const user = this.userRepo.create({
+      ...dto,
+      password: hashed,
+    });
+
     const savedUser = await this.userRepo.save(user);
 
     const { password, ...userWithoutPassword } = savedUser;
-    return userWithoutPassword;
+
+    return {
+      message: 'Register success. You can login now.',
+      user: userWithoutPassword,
+    };
   }
 
+  // ================= LOGIN =================
   async login(dto: LoginDto) {
     const user = await this.userRepo.findOne({
       where: { email: dto.email },
@@ -47,29 +67,54 @@ export class AuthService {
       ],
     });
 
-    if (!user) throw new UnauthorizedException('Invalid credentials');
+    // Không tiết lộ email tồn tại hay không
+    if (!user) {
+      throw new UnauthorizedException('Email or password is incorrect');
+    }
 
     const match = await bcrypt.compare(dto.password, user.password);
-    if (!match) throw new UnauthorizedException('Invalid credentials');
 
-    const token = this.jwtService.sign({ sub: user.id, email: user.email });
+    if (!match) {
+      throw new UnauthorizedException('Email or password is incorrect');
+    }
 
-    // Optional: tạo refreshToken (nếu cần)
+    const access_token = this.jwtService.sign({
+      sub: user.id,
+      email: user.email,
+    });
+
     const refreshToken = this.jwtService.sign(
       { sub: user.id },
       { expiresIn: '7d' },
     );
+
     user.refreshToken = refreshToken;
     await this.userRepo.save(user);
 
-    return { access_token: token, refreshToken };
+    return {
+      message: 'Login success',
+      access_token,
+      refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar,
+        role: user.role,
+      },
+    };
   }
 
+  // ================= LOGOUT =================
   async logout(userId: number) {
-    // xóa refresh token
     await this.userRepo.update(userId, { refreshToken: null });
+
+    return {
+      message: 'Logout success',
+    };
   }
 
+  // ================= CHANGE PASSWORD =================
   async changePassword(
     userId: number,
     body: { currentPassword: string; newPassword: string },
@@ -85,24 +130,26 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    // check current password
     const isMatch = await bcrypt.compare(currentPassword, user.password);
+
     if (!isMatch) {
       throw new BadRequestException('Current password is incorrect');
     }
 
-    // validate new password
-    if (newPassword.length < 6) {
-      throw new UnauthorizedException('Password must be at least 6 characters');
+    if (!newPassword || newPassword.length < 6) {
+      throw new BadRequestException(
+        'New password must be at least 6 characters',
+      );
     }
 
-    // hash new password
     const hashed = await bcrypt.hash(newPassword, 10);
 
     await this.userRepo.update(userId, {
       password: hashed,
     });
 
-    return { message: 'Password changed successfully' };
+    return {
+      message: 'Password changed successfully',
+    };
   }
 }

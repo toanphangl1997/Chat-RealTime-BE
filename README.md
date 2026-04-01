@@ -104,4 +104,3 @@ NOTE 2: đã deploy lại, login chat realtime ổn trên trên cả dev và pro
 lỗi load avatar ở prod cả khung chat và icon
 
 tiếp tục: Đăng ký tài khoản CLoudinary để upload avatar tránh local: https://console.cloudinary.com/app/
-
